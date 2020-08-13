@@ -17,7 +17,7 @@ function drawLake(posX, posY, width, height, contextLayer, ctx) {
         for (var y = startY; y <= endY; y++) {
             var pixel = ctx.getImageData(x, startY - (y - startY) * 4, 1, 1);
             // contextLayer.fillStyle = "#FF000030";
-            contextLayer.fillStyle = "rgba(" + pixel.data[0] + "," + pixel.data[1] + "," + (pixel.data[2] * 0.5 + 200) + "," + 0x80 + ")"
+            contextLayer.fillStyle = "rgba(" + pixel.data[0] + "," + pixel.data[1] + "," + (pixel.data[2] * 0.5 + 200) + "," + 0x80 + ")";
             contextLayer.fillRect(x, y, 1, 1);
             // contextLayer.fillStyle = "rgba(0, 0, 127, 127)"
             // contextLayer.fillRect(x, y, 1, 1);
@@ -25,10 +25,10 @@ function drawLake(posX, posY, width, height, contextLayer, ctx) {
     }
 }
 
-function drawLeaves(posX, posY, radius, dirSun, ctx) {
+function drawLeaves(posX, posY, radius, dirSun, numLeaves, ctx) {
     // ctx.fillStyle = "rgba(" + pixel.data[0] + "," + pixel.data[1] + "," + (pixel.data[2] * 0.5 + 200) + "," + 0x80 + ")"
 
-    var numLeaves = 25; // due to high number of branches in trees, this number can make
+    // var numLeaves = 15; // due to high number of branches in trees, this number can make, keep it low
     // the total amount of leaves explosive.
 
     for (var i = 0; i < numLeaves; i++) {
@@ -51,7 +51,7 @@ function drawLeaves(posX, posY, radius, dirSun, ctx) {
 }
 
 // kind of a L-system tree
-function drawTrunk(startX, startY, angle, level, maxLevel, length, originalLength, randNumbers, endBranch, localCtx) {
+function drawTrunk(startX, startY, angle, level, maxLevel, length, originalLength, randNumbers, endBranch, sunDir, localCtx) {
     if (level >= maxLevel) {
         localCtx.strokeStyle = "#000000";
         localCtx.fillStyle = "#FFFFFF"; //black trunks are good enough, but can be experimented
@@ -75,7 +75,9 @@ function drawTrunk(startX, startY, angle, level, maxLevel, length, originalLengt
             //     localCtx.fill();
             // }
 
-            drawLeaves(posEnd[0], posEnd[1], originalLength / 4, [1, -1], localCtx);
+            // trees in the back will have less leaves
+            var numLeaves = 10 + Math.ceil(0.2 * length);
+            drawLeaves(posEnd[0], posEnd[1], originalLength / 4, sunDir, numLeaves, localCtx);
         }
 
         return;
@@ -83,7 +85,7 @@ function drawTrunk(startX, startY, angle, level, maxLevel, length, originalLengt
 
     // base trunk, unchanged, give it a level of 1000 to be drawn immediately
     var curAngle = angle;
-    drawTrunk(startX, startY, angle, level + 1000, maxLevel, length, originalLength, randNumbers, false, localCtx);
+    drawTrunk(startX, startY, angle, level + 1000, maxLevel, length, originalLength, randNumbers, false, sunDir, localCtx);
     var curPos = [startX + length * Math.sin(angle), startY + length * Math.cos(angle)];
 
     // branch at the top of the trunk
@@ -91,7 +93,7 @@ function drawTrunk(startX, startY, angle, level, maxLevel, length, originalLengt
         var newAngleIncrement = 3.1415 / 10 * randNumbers[0];
         var newAngle = curAngle + newAngleIncrement;
         // var newPos = [curPos[0] + length * Math.sin(newAngle), curPos[1] + length * Math.cos(newAngle)];
-        drawTrunk(curPos[0], curPos[1], newAngle, level + 1, maxLevel, length * 0.8, originalLength, randNumbers, true, localCtx);
+        drawTrunk(curPos[0], curPos[1], newAngle, level + 1, maxLevel, length * 0.8, originalLength, randNumbers, true, sunDir, localCtx);
     }
 
     // next two branches should be on the two sides of the trunk, enforce it with a variable
@@ -107,7 +109,7 @@ function drawTrunk(startX, startY, angle, level, maxLevel, length, originalLengt
         var startLength = length * ((randNumbers[2] / 2 + 0.5) * 0.4 + 0.5)
         var curPos = [startX + startLength * Math.sin(angle), startY + startLength * Math.cos(angle)];
         // var newPos = [curPos[0] + length * Math.sin(newAngle), curPos[1] + length * Math.cos(newAngle)];
-        drawTrunk(curPos[0], curPos[1], newAngle, level + 1, maxLevel, length * 0.6, originalLength, randNumbers, true, localCtx);
+        drawTrunk(curPos[0], curPos[1], newAngle, level + 1, maxLevel, length * 0.6, originalLength, randNumbers, true, sunDir, localCtx);
     }
 
     // side trunk
@@ -117,11 +119,11 @@ function drawTrunk(startX, startY, angle, level, maxLevel, length, originalLengt
         var startLength = length * ((randNumbers[4] / 2 + 0.5) * 0.3 + 0.5)
         var curPos = [startX + startLength * Math.sin(angle), startY + startLength * Math.cos(angle)];
         // var newPos = [curPos[0] + length * Math.sin(newAngle), curPos[1] + length * Math.cos(newAngle)];
-        drawTrunk(curPos[0], curPos[1], newAngle, level + 1, maxLevel, length * 0.5, originalLength, randNumbers, true, localCtx);
+        drawTrunk(curPos[0], curPos[1], newAngle, level + 1, maxLevel, length * 0.5, originalLength, randNumbers, true, sunDir, localCtx);
     }
 }
 
-function drawTree(startX, startY, angle, level, maxLevel, length, localCtx) {
+function drawTree(startX, startY, angle, level, maxLevel, length, sunDir, localCtx) {
     var randNumbers = [];
 
     // prepare an array of random numbers in order to have self repeating branches
@@ -130,41 +132,60 @@ function drawTree(startX, startY, angle, level, maxLevel, length, localCtx) {
         randNumbers[i] = Math.random() * 2 - 1;
     }
 
-    drawTrunk(startX, startY, angle, level, maxLevel, length, length, randNumbers, true, localCtx);
+    drawTrunk(startX, startY, angle, level, maxLevel, length, length, randNumbers, true, sunDir, localCtx);
 }
 
 // simple blurry, half transparent dark ellipse (could be smarter)
 function drawTreeShadow(startX, startY, length, sunDir, localCtx) {
-    // var shadowStrength = 0x01;
+
     localCtx.fillStyle = "rgba(" + 0x00 + "," + 0x00 + "," + 0x00 + "," + 0.5 + ")"
     localCtx.filter = 'blur(' + 8 + 'px)';
 
     localCtx.beginPath();
-    localCtx.ellipse(startX, startY, length, length / 8, 0, 0, 2 * Math.PI);
+    // provide a slight offset to the shadow in the x direction
+    localCtx.ellipse(Math.floor(startX - (sunDir[0] * startX) * 0.05), startY, length, length / 8, 0, 0, 2 * Math.PI);
     localCtx.fill();
+
+    localCtx.filter = 'blur(' + 0 + 'px)';
 
     // localCtx.ellipse(startX - length / 2, startY, length / 2, length / 8, 0, 0, 2 * Math.PI);
 }
 
 // angle left should be negative
 // angle ridge can be whatever but should between left and right
-function drawMountain(posX, posY, angleLeft, angleRight, angleRidge, height, maxHeight, localCtx) {
-    localCtx.stroke = "#000000";
+function drawMountain(posX, posY, angleLeft, angleRight, angleRidge, height, maxHeight, sunDir, localCtx) {
+    localCtx.strokeStyle = "#000000";
     localCtx.fillStyle = "#DFDFDF";
+
+    // multiplication to simulate crude gaussian
+    var randomColVariation = (Math.random() * 2 - 1) * (Math.random() * 2 - 1);
+
+    var grassRed = Math.floor(24 + 8 * randomColVariation)
+    var grassGreen = Math.floor(140 + 36 * randomColVariation)
+    var grassBlue = Math.floor(40 + 8 * randomColVariation)
 
     var snowHeight = height - 110 + 30 * Math.random();
     snowHeight = (snowHeight < 0) ? 0 : snowHeight;
 
+    // provides variety, snow can be a bit gray
+    var snowColor = 0xD0 + Math.random() * 0x2F;
+
     var leftMiddleAngle = (angleLeft + angleRidge) / 2;
-    var strengthLeft = leftMiddleAngle / (3.1415) + 0.5;
+
+    // subtract 90deg from the angle between left side and the ridge to get a normal vector
+    var leftSideNormalAngle = leftMiddleAngle - Math.PI / 2;
+    var leftSideNormalVector = [Math.cos(leftSideNormalAngle), Math.sin(leftSideNormalAngle)];
+    var lightStrengthLeft = sunDir[0] * leftSideNormalVector[0] + sunDir[1] * leftSideNormalVector[1];
+    if (lightStrengthLeft < 0.3) {
+        lightStrengthLeft = 0.3; // don't make it completely dark in case it is hidden ==> simulates ambient light
+    }
     var heightRatio = height / 150;
     heightRatio = (heightRatio > 1) ? 1 : heightRatio;
-    strengthLeft = heightRatio * strengthLeft + (1 - heightRatio) * 0.5;
-    var red = Math.floor(0x20 * strengthLeft);
-    var green = Math.floor(0xAF * strengthLeft);
-    var blue = Math.floor(0x30 * strengthLeft);
-    // var colLeft = 0x010101 * Math.floor(strengthLeft * 0xFF);
-    var colLeft = blue + (green << 8) + (red << 16)
+    lightStrengthLeft = heightRatio * lightStrengthLeft + (1 - heightRatio) * 0.5;
+
+    // var colLeft = 0x010101 * Math.floor(lightStrengthLeft * 0xFF);
+    var rgb = [Math.floor(grassBlue * lightStrengthLeft), Math.floor(grassGreen * lightStrengthLeft), Math.floor(grassRed * lightStrengthLeft)]
+    var colLeft = rgb[0] + (rgb[1] << 8) + (rgb[2] << 16)
     var col = '#' + (colLeft & 0xffffff).toString(16).padStart(6, 0)
     localCtx.fillStyle = col;
     localCtx.strokeStyle = localCtx.fillStyle;
@@ -176,15 +197,21 @@ function drawMountain(posX, posY, angleLeft, angleRight, angleRidge, height, max
     localCtx.fill();
 
     var rightMiddleAngle = (angleRidge + angleRight) / 2
-    var strengthRight = rightMiddleAngle / (3.1415) + 0.5
+
+    // substract 90deg from the angle between left side and the ridge to get a normal vector
+    var rigthSideNormalAngle = rightMiddleAngle - Math.PI / 2;
+    var rightSideNormalVector = [Math.cos(rigthSideNormalAngle), Math.sin(rigthSideNormalAngle)];
+    var lightStrengthRight = sunDir[0] * rightSideNormalVector[0] + sunDir[1] * rightSideNormalVector[1];
+    if (lightStrengthRight < 0.3) {
+        lightStrengthRight = 0.3; //dont make it completely dark in case it is hidden ==> simulates ambiant light
+    }
+
     var heightRatio = height / 150;
     heightRatio = (heightRatio > 1) ? 1 : heightRatio;
-    strengthRight = heightRatio * strengthRight + (1 - heightRatio) * 0.5;
-    var red = Math.floor(0x20 * strengthRight)
-    var green = Math.floor(0xAF * strengthRight)
-    var blue = Math.floor(0x30 * strengthRight)
-    // var colLeft = 0x010101 * Math.floor(strengthLeft * 0xFF);
-    var colLeft = blue + (green << 8) + (red << 16)
+    lightStrengthRight = heightRatio * lightStrengthRight + (1 - heightRatio) * 0.5;
+    var rgb = [Math.floor(grassBlue * lightStrengthRight), Math.floor(grassGreen * lightStrengthRight), Math.floor(grassRed * lightStrengthRight)]
+
+    var colLeft = rgb[0] + (rgb[1] << 8) + (rgb[2] << 16)
     var col = '#' + (colLeft & 0xffffff).toString(16).padStart(6, 0)
     localCtx.fillStyle = col;
     localCtx.strokeStyle = localCtx.fillStyle;
@@ -199,9 +226,9 @@ function drawMountain(posX, posY, angleLeft, angleRight, angleRidge, height, max
     localCtx.clearRect(0, 0, sizeCanvas[0], posY + snowHeight);
 
     // snowtop left
-    var red = Math.floor(0xFF * strengthLeft)
-    var green = Math.floor(0xFF * strengthLeft)
-    var blue = Math.floor(0xFF * strengthLeft)
+    var red = Math.floor(snowColor * lightStrengthLeft)
+    var green = Math.floor(snowColor * lightStrengthLeft)
+    var blue = Math.floor(snowColor * lightStrengthLeft)
     var colLeft = blue + (green << 8) + (red << 16)
     var col = '#' + (colLeft & 0xffffff).toString(16).padStart(6, 0)
     localCtx.fillStyle = col;
@@ -214,9 +241,9 @@ function drawMountain(posX, posY, angleLeft, angleRight, angleRidge, height, max
     localCtx.fill();
 
     // snowtop right
-    var red = Math.floor(0xFF * strengthRight)
-    var green = Math.floor(0xFF * strengthRight)
-    var blue = Math.floor(0xFF * strengthRight)
+    var red = Math.floor(snowColor * lightStrengthLeft)
+    var green = Math.floor(snowColor * lightStrengthLeft)
+    var blue = Math.floor(snowColor * lightStrengthLeft)
     var col_left = blue + (green << 8) + (red << 16)
     var col = '#' + (colLeft & 0xffffff).toString(16).padStart(6, 0)
     localCtx.fillStyle = col;
@@ -237,8 +264,9 @@ function drawCloudsSine(localCtx, sunDir) {
     randOrientationX /= totalOrientations
     randOrientationY /= totalOrientations
 
-    for (var x = 0; x < sizeCanvas[0]; x += 15) {
-        for (var y = 0; y < 400; y += 15) {
+    localCtx.beginPath();
+    for (var x = 0; x < sizeCanvas[0]; x += 12) {
+        for (var y = 0; y < 400; y += 12) {
             var probCloud = ((Math.sin((randOrientationX * x + randOrientationY * y) / 100)) * 0.5 + 0.5) * 2;
             if (Math.random() > probCloud) {
                 var gradientX = randOrientationX / 100 * (Math.cos((randOrientationX * x + randOrientationY * y) / 100));
@@ -261,20 +289,19 @@ function drawCloudsSine(localCtx, sunDir) {
                 localCtx.strokeStyle = "rgba(" + (0xFF * cloudBrightness) + "," + (0xFF * cloudBrightness) + "," + (0xFF * cloudBrightness) + "," + 0xff + ")"
                 // localCtx.strokeStyle = "#FFFFFF"; // white
                 localCtx.fillStyle = localCtx.strokeStyle; // white
-                localCtx.beginPath();
-                localCtx.arc(x, y, 20, 0, 2 * Math.PI);
-                localCtx.fill();
+                localCtx.arc(x, y, 12, 0, 2 * Math.PI);
             }
         }
     }
+    localCtx.fill();
 }
 
 function drawClouds(localCtx, sunDir, scale) {
     var probArray = improvedPerlinNoiseRecursive(1600, 400, 600 * scale, 3);
     // var probArray = improvedPerlinNoise(1600, 400, 100);
 
-    for (var x = 0; x < sizeCanvas[0]; x += 15) {
-        for (var y = 0; y < 400; y += 15) {
+    for (var x = 0; x < sizeCanvas[0]; x += 8) {
+        for (var y = 0; y < 400; y += 8) {
             if ((probArray[x][y] * 10 - 5) > Math.random()) {
 
                 var gradientX = probArray[x - 1 >= 0 ? x - 1 : 0][y] - probArray[x + 1][y];
@@ -285,11 +312,11 @@ function drawClouds(localCtx, sunDir, scale) {
                 // var cloudBrightness = (probArray[x][y]);
                 var cloudBrightness = (gradient[0] * sunDir[0] + gradient[1] * sunDir[1]) * 0.2 + 0.8;
 
-                localCtx.strokeStyle = "rgba(" + (0xFF * cloudBrightness) + "," + (0xFF * cloudBrightness) + "," + (0xFF * cloudBrightness) + "," + 0.9 + ")"
+                localCtx.strokeStyle = "rgba(" + (0xFF * cloudBrightness) + "," + (0xFF * cloudBrightness) + "," + (0xFF * cloudBrightness) + "," + 1.0 + ")"
                 // localCtx.strokeStyle = "#FFFFFF"; //white
                 localCtx.fillStyle = localCtx.strokeStyle;
                 localCtx.beginPath();
-                localCtx.arc(x, y, 20 * scale, 0, 2 * Math.PI);
+                localCtx.arc(x, y, 10 * scale, 0, 2 * Math.PI);
                 localCtx.fill();
             }
         }
@@ -304,14 +331,15 @@ function drawGround(ctx) {
     ctx.strokeStyle = "rgba(" + 0x20 + "," + 0xAF + "," + 0x30 + "," + 0xFF + ")"
     ctx.fillStyle = ctx.strokeStyle;
 
-    var noise = improvedPerlinNoiseRecursive(1600, height * 8, 50, 2);
+    // make the perlin noise higher than the actual texture as it will be squished
+    var noise = improvedPerlinNoiseRecursive(1600, height * 4, 30, 2);
     var imagedata = ctx.createImageData(width, height);
     for (var x = 0; x < width; x++) {
         for (var y = 0; y < height; y++) {
             var idx = (y * width + x) * 4;
             var ratioY = 1 - (y / height);
             //give it a fake perspective by using a sqrt, power is chosen as it seemed to look good
-            var yNonlinear = Math.ceil(Math.pow(ratioY, 1.41) * height * 8);
+            var yNonlinear = Math.ceil(Math.pow(ratioY, 1.41) * height * 4);
             imagedata.data[idx] = 0x20 * (noise[x][yNonlinear] * 0.5 + 0.5); //red
             imagedata.data[idx + 1] = 0xAF * (noise[x][yNonlinear] * 0.5 + 0.5); //green
             imagedata.data[idx + 2] = 0x30 * (noise[x][yNonlinear] * 0.5 + 0.5); //blue
@@ -346,7 +374,9 @@ var canvas = document.getElementById("myCanvas");
 var ctx = canvas.getContext("2d");
 
 sizeCanvas = [1600, 900];
-sunDir = [1 / Math.sqrt(2), -1 / Math.sqrt(2)]; // top right
+sunAngle = (Math.random() * 2 - 1) * (Math.PI / 3) - Math.PI / 2; // +- 60 degrees around up vector
+sunDir = [Math.cos(sunAngle), Math.sin(sunAngle)];
+// sunDir = [0, -1]; // sun at the top
 
 // sky
 ctx.strokeStyle = "#50A0FF"; // light blue
@@ -376,11 +406,14 @@ for (var i = maxClouds - 1; i >= 0; i--) {
     var contextLayer = canvasLayer.getContext('2d');
     contextLayer.fillStyle = 'rgba(0,0,0,0)'; // make context transparent (create a layer)
     contextLayer.fillRect(0, 0, sizeCanvas[0], sizeCanvas[1]);
-    contextLayer.filter = 'blur(' + (8 + 2 * i) + 'px)';
-    // drawClouds(contextLayer, sunDir);
     var scale = 1 / ((i + 1)); // make clouds smaller (and blurrier)
-    drawClouds(contextLayer, [0, -1], scale);
-    ctx.drawImage(canvasLayer, 0, 0);
+    drawClouds(contextLayer, sunDir, scale);
+    ctx.filter = 'blur(' + (10) + 'px)';
+
+    // due to the post drawing blur, some artifacts can appear on the borders of the image
+    // avoid that by drawing the image out of bounds and widen it a little
+    ctx.drawImage(canvasLayer, -10, -10, sizeCanvas[0] + 20, sizeCanvas[1]);
+    ctx.filter = 'blur(' + (0) + 'px)';
 }
 
 var maxMountains = 100;
@@ -405,15 +438,33 @@ for (var i = 0; i < maxMountains; i++) {
     //if farthness is [0, 1] then pow(farthness, 1/8) will have more values >0.75 than <0.75
     var posY = 700 - 400 * Math.pow(farthest, 1 / 8);
     //draw mountain in a layer
-    drawMountain(posX, posY, maxAngle, -maxAngle, ridgeAngle, (farthest + 0.75) * 100, (1 + 0.75) * 100, contextLayer);
+    drawMountain(posX, posY, maxAngle, -maxAngle, ridgeAngle, (farthest + 0.75) * 100, (1 + 0.75) * 100, sunDir, contextLayer);
 
     // var canvas_layer_distorted = distort_image(context_layer, sizeCanvas)
 
+    // ctx.filter = 'blur('+(farthest)+'px)'; // give a depth of field (not that great)
     ctx.drawImage(canvasLayer, 0, 0);
+    // ctx.filter = 'blur('+(0)+'px)';
 }
+
+// draw all the trees in a single context, not that great
+// var canvasLayer = document.createElement('canvas');
+// canvasLayer.width = sizeCanvas[0];
+// canvasLayer.height = sizeCanvas[1];
+// var contextLayer = canvasLayer.getContext('2d');
+// contextLayer.fillStyle = 'rgba(0,0,0,0)'; //maxe context transparent (create a layer)
+// contextLayer.fillRect(0,0,sizeCanvas[0], sizeCanvas[1]);
+
+// var canvasLayerTreeShadow = document.createElement('canvas');
+// canvasLayerTreeShadow.width = sizeCanvas[0];
+// canvasLayerTreeShadow.height = sizeCanvas[1];
+// var contextLayerTreeShadow = canvasLayerTreeShadow.getContext('2d');
+// contextLayerTreeShadow.fillStyle = 'rgba(0,0,0,0)'; // make context transparent (create a layer)
+// contextLayerTreeShadow.fillRect(0,0,sizeCanvas[0], sizeCanvas[1]);
 
 var maxTrees = 100;
 for (var i = 0; i < maxTrees; i++) {
+
     var canvasLayer = document.createElement('canvas');
     canvasLayer.width = sizeCanvas[0];
     canvasLayer.height = sizeCanvas[1];
@@ -425,7 +476,7 @@ for (var i = 0; i < maxTrees; i++) {
     var posX = 1600 * Math.random();
     var posY = 900 - 180 * Math.pow(farthest, 1 / 2) * 2;
     var treeSize = (1 - farthest) * 60 + 20;
-    drawTree(posX, posY, 3.1415, 0, 4, treeSize, contextLayer);
+    drawTree(posX, posY, 3.1415, 0, 4, treeSize, sunDir, contextLayer);
 
     ctx.drawImage(canvasLayer, 0, 0);
 
@@ -441,6 +492,9 @@ for (var i = 0; i < maxTrees; i++) {
 
     ctx.drawImage(canvasLayer, 0, 0);
 }
+
+// ctx.drawImage(canvasLayer, 0, 0);
+// ctx.drawImage(canvasLayerTreeShadow, 0, 0);
 
 // TODO: Lake
 {
