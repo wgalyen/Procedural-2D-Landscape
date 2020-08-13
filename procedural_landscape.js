@@ -151,6 +151,33 @@ function drawTreeShadow(startX, startY, length, sunDir, localCtx) {
     // localCtx.ellipse(startX - length / 2, startY, length / 2, length / 8, 0, 0, 2 * Math.PI);
 }
 
+function mod(n, m) {
+    return ((n % m) + m) % m;
+}
+
+function distortedLineTo(posFrom, posTo, ctx) {
+
+    var distFactor = 4;
+
+    var numJumps = 20
+    for (var i = 1; i <= numJumps; i++) {
+        var lineProgression = i / numJumps;
+        var posX = (1 - lineProgression) * posFrom[0] + lineProgression * posTo[0];
+        var posY = (1 - lineProgression) * posFrom[1] + lineProgression * posTo[1];
+
+        // calls a global array containing noise values
+        var distortionVal = noiseValuesDistortion[mod(Math.floor(posX), noiseValuesDistortion.length)][mod(Math.floor(posY), noiseValuesDistortion[0].length)]
+
+        // don't distort borders ==> creates artifacts o/w
+        if (i != numJumps) {
+            posX += (distortionVal * 2 - 1) * distFactor;
+            posY += distortionVal * distFactor; //only go down to avoid artifacts with snow boundaries
+        }
+        ctx.lineTo(posX, posY);
+    }
+
+}
+
 // angle left should be negative
 // angle ridge can be whatever but should between left and right
 function drawMountain(posX, posY, angleLeft, angleRight, angleRidge, height, maxHeight, sunDir, localCtx) {
@@ -192,8 +219,11 @@ function drawMountain(posX, posY, angleLeft, angleRight, angleRidge, height, max
 
     localCtx.beginPath();
     localCtx.moveTo(posX, posY);
-    localCtx.lineTo(posX + Math.tan(angleLeft) * height, posY + height);
-    localCtx.lineTo(posX + Math.tan(angleRidge) * height, posY + height);
+    var p1 = [posX + Math.tan(angleLeft) * height, posY + height];
+    distortedLineTo([posX, posY], p1, localCtx);
+    var p2 = [posX + Math.tan(angleRidge) * height, posY + height];
+    distortedLineTo(p1, p2, localCtx);
+    distortedLineTo(p2, [posX, posY], localCtx);
     localCtx.fill();
 
     var rightMiddleAngle = (angleRidge + angleRight) / 2
@@ -218,8 +248,11 @@ function drawMountain(posX, posY, angleLeft, angleRight, angleRidge, height, max
 
     localCtx.beginPath();
     localCtx.moveTo(posX, posY);
-    localCtx.lineTo(posX + Math.tan(angleRidge) * height, posY + height);
-    localCtx.lineTo(posX + Math.tan(angleRight) * height, posY + height);
+    var p1 = [posX + Math.tan(angleRidge) * height, posY + height];
+    distortedLineTo([posX, posY], p1, localCtx);
+    var p2 = [posX + Math.tan(angleRight) * height, posY + height];
+    distortedLineTo(p1, p2, localCtx);
+    distortedLineTo(p2, [posX, posY], localCtx);
     localCtx.fill();
 
     localCtx.fillStyle = 'rgba(0,0,0,0)'; // make context transparent (create a layer)
@@ -236,8 +269,13 @@ function drawMountain(posX, posY, angleLeft, angleRight, angleRidge, height, max
 
     localCtx.beginPath();
     localCtx.moveTo(posX, posY);
-    localCtx.lineTo(posX + Math.tan(angleLeft) * snowHeight, posY + snowHeight);
-    localCtx.lineTo(posX + Math.tan(angleRidge) * snowHeight, posY + snowHeight);
+    // localCtx.lineTo(posX + Math.tan(angleLeft) * snowHeight, posY + snowHeight);
+    // localCtx.lineTo(posX + Math.tan(angleRidge) * snowHeight, posY + snowHeight);
+    var p1 = [posX + Math.tan(angleLeft) * snowHeight, posY + snowHeight];
+    distortedLineTo([posX, posY], p1, localCtx);
+    var p2 = [posX + Math.tan(angleRidge) * snowHeight, posY + snowHeight];
+    distortedLineTo(p1, p2, localCtx);
+    distortedLineTo(p2, [posX, posY], localCtx);
     localCtx.fill();
 
     // snowtop right
@@ -251,8 +289,13 @@ function drawMountain(posX, posY, angleLeft, angleRight, angleRidge, height, max
 
     localCtx.beginPath();
     localCtx.moveTo(posX, posY);
-    localCtx.lineTo(posX + Math.tan(angleRidge) * snowHeight, posY + snowHeight);
-    localCtx.lineTo(posX + Math.tan(angleRight) * snowHeight, posY + snowHeight);
+    // localCtx.lineTo(posX + Math.tan(angleRidge) * snowHeight, posY + snowHeight);
+    // localCtx.lineTo(posX + Math.tan(angleRight) * snowHeight, posY + snowHeight);
+    var p1 = [posX + Math.tan(angleRidge) * snowHeight, posY + snowHeight];
+    distortedLineTo([posX, posY], p1, localCtx);
+    var p2 = [posX + Math.tan(angleRight) * snowHeight, posY + snowHeight];
+    distortedLineTo(p1, p2, localCtx);
+    distortedLineTo(p2, [posX, posY], localCtx);
     localCtx.fill();
 }
 
@@ -377,6 +420,9 @@ sizeCanvas = [1600, 900];
 sunAngle = (Math.random() * 2 - 1) * (Math.PI / 3) - Math.PI / 2; // +- 60 degrees around up vector
 sunDir = [Math.cos(sunAngle), Math.sin(sunAngle)];
 // sunDir = [0, -1]; // sun at the top
+
+//use a single global noise function for distortion
+var noiseValuesDistortion = improvedPerlinNoiseRecursive(sizeCanvas[0], sizeCanvas[1], 10, 1);
 
 // sky
 ctx.strokeStyle = "#50A0FF"; // light blue
